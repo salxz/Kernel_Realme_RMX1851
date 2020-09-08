@@ -30,7 +30,27 @@ struct df_boost_drv {
 	bool screen_awake;
 };
 
-static struct df_boost_drv *df_boost_drv_g __read_mostly;
+static void devfreq_input_unboost(struct work_struct *work);
+static void devfreq_max_unboost(struct work_struct *work);
+
+#define BOOST_DEV_INIT(b, dev, freq) .devices[dev] = {				\
+	.input_unboost =							\
+		__DELAYED_WORK_INITIALIZER((b).devices[dev].input_unboost,	\
+					   devfreq_input_unboost, 0),		\
+	.max_unboost =								\
+		__DELAYED_WORK_INITIALIZER((b).devices[dev].max_unboost,	\
+					   devfreq_max_unboost, 0),		\
+	.boost_waitq =								\
+		__WAIT_QUEUE_HEAD_INITIALIZER((b).devices[dev].boost_waitq),	\
+	.boost_freq = freq							\
+}
+
+static struct df_boost_drv df_boost_drv_g __read_mostly = {
+	BOOST_DEV_INIT(df_boost_drv_g, DEVFREQ_MSM_CPUBW,
+		       CONFIG_DEVFREQ_MSM_CPUBW_BOOST_FREQ),
+	BOOST_DEV_INIT(df_boost_drv_g, DEVFREQ_MSM_LLCCBW,
+		       CONFIG_DEVFREQ_MSM_LLCCBW_BOOST_FREQ)
+};
 
 static void __devfreq_boost_kick(struct boost_dev *b)
 {
